@@ -14,6 +14,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
     "pydantic>=2.7.0",
     "dateparser>=1.2.0",
+    "datapizza-ai-tools-duckduckgo>=0.0.4",
 ]
 
 [project.optional-dependencies]
