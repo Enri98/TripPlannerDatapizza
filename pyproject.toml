@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tripplanner"
+version = "0.1.0"
+description = "TripPlanner MVP scaffold using Datapizza AI and Gemini"
+readme = "docs/ARCHITECTURE.md"
+requires-python = ">=3.10"
+dependencies = [
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+tripplanner = "tripplanner.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tripplanner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
