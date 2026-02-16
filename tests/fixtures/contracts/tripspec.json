@@ -1,0 +1,38 @@
+{
+  "request_context": {
+    "now_ts": "2026-02-16T10:30:00Z",
+    "timezone": "Europe/Rome",
+    "input_language": "en",
+    "output_language": "it"
+  },
+  "budget": {
+    "amount": 1500,
+    "currency": "EUR",
+    "scope": "total",
+    "num_travelers": 2
+  },
+  "legs": [
+    {
+      "destination_text": "Rome, Italy",
+      "geo": {
+        "lat": 41.9028,
+        "lon": 12.4964,
+        "bbox": [41.8, 12.3, 42.0, 12.7],
+        "place_name": "Rome",
+        "country_code": "it"
+      },
+      "date_range": {
+        "start_date": "2026-03-10",
+        "end_date": "2026-03-14"
+      }
+    }
+  ],
+  "preferences": {
+    "tags": ["food", "history", "walkable"]
+  },
+  "constraints": {
+    "pace": "standard",
+    "mobility": "public_transport",
+    "accessibility": "step_free_preferred"
+  }
+}

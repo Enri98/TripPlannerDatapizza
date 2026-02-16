@@ -1,0 +1,31 @@
+{
+  "tasks": [
+    {
+      "task_id": "geo_leg_0",
+      "agent": "geo",
+      "input_ref": "legs[0]",
+      "depends_on": []
+    },
+    {
+      "task_id": "weather_leg_0",
+      "agent": "weather",
+      "input_ref": "legs[0]",
+      "depends_on": ["geo_leg_0"],
+      "parallel_group": "leg0_enrichment"
+    },
+    {
+      "task_id": "poi_leg_0",
+      "agent": "poi",
+      "input_ref": "legs[0]",
+      "depends_on": ["geo_leg_0"],
+      "parallel_group": "leg0_enrichment"
+    },
+    {
+      "task_id": "synth",
+      "agent": "synth",
+      "input_ref": "trip",
+      "depends_on": ["weather_leg_0", "poi_leg_0"],
+      "stop_condition": "validated_inputs_present"
+    }
+  ]
+}

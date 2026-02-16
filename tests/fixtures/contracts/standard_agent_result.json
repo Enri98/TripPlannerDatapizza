@@ -1,0 +1,21 @@
+{
+  "data": {
+    "summary": "Mostly sunny days with mild temperatures.",
+    "daily": [
+      {"date": "2026-03-10", "condition": "sunny"},
+      {"date": "2026-03-11", "condition": "partly_cloudy"}
+    ]
+  },
+  "evidence": [
+    {
+      "source": "open-meteo",
+      "title": "Rome Daily Forecast",
+      "snippet": "Forecast for March 10-14.",
+      "retrieved_at": "2026-02-16T11:00:00Z",
+      "url": "https://open-meteo.com/"
+    }
+  ],
+  "confidence": 0.86,
+  "warnings": [],
+  "cache_key": "weather:41.9028:12.4964:2026-03-10:2026-03-14:europe/rome"
+}
