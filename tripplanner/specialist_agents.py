@@ -7,6 +7,7 @@ import json
 from typing import Any
 
 from datapizza.agents import Agent
+from datapizza.agents.logger import AgentLogger
 from datapizza.clients.mock_client import MockClient
 from datapizza.core.clients import ClientResponse
 from datapizza.tools import Tool
@@ -94,6 +95,7 @@ class _BaseSpecialistAgent:
             client=self._client,
             system_prompt=system_prompt,
             tools=[tool],
+            logger=_QuietAgentLogger(name),
             max_steps=2,
             terminate_on_text=True,
             stateless=True,
@@ -102,7 +104,7 @@ class _BaseSpecialistAgent:
     def _invoke_tool(self, payload_json: str) -> str:
         payload = json.loads(payload_json)
         result = self._execute(payload)
-        return result.model_dump_json()
+        return result.model_dump_json(ensure_ascii=True)
 
     def invoke(self, payload: dict[str, Any] | BaseModel) -> StandardAgentResult:
         payload_dict = payload.model_dump(mode="json") if isinstance(payload, BaseModel) else payload
@@ -269,3 +271,19 @@ def _assert_no_question_marks(result: StandardAgentResult) -> None:
     for warning in result.warnings:
         if "?" in warning:
             raise RuntimeError("Specialist agents must not ask user questions.")
+
+
+class _QuietAgentLogger(AgentLogger):
+    """Suppress rich panel output to avoid terminal encoding crashes."""
+
+    def __init__(self, agent_name: str) -> None:
+        super().__init__(agent_name)
+
+    def _colored_log(self, log_text: str, *args, **kwargs) -> None:  # type: ignore[override]
+        return
+
+    def _log(self, log_text: int, *args, **kwargs) -> None:  # type: ignore[override]
+        return
+
+    def log_panel(self, *args, **kwargs) -> None:  # type: ignore[override]
+        return

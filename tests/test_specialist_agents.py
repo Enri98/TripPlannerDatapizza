@@ -43,6 +43,15 @@ class MockGeoTool:
         )
 
 
+class MockGeoToolUnicode:
+    def run(self, *, query: str, locale: str, limit: int) -> StandardAgentResult:
+        return _result(
+            "osm",
+            {"candidates": [{"place_name": "汉"}]},
+            "geo:unicode",
+        )
+
+
 class MockWeatherTool:
     def __init__(self) -> None:
         self.calls = []
@@ -160,3 +169,12 @@ def test_transport_agent_uses_search_and_no_booking_warnings() -> None:
     assert len(search_tool.calls) == 1
     assert any("booking" in warning.lower() for warning in result.warnings)
     assert "?" not in " ".join(result.warnings)
+
+
+def test_specialist_tool_output_is_ascii_safe_for_legacy_console() -> None:
+    agent = GeoAgent(geo_tool=MockGeoToolUnicode())
+    payload_json = '{"query":"Rome","locale":"en","limit":3}'
+    raw = agent._invoke_tool(payload_json)
+
+    # Regression guard for Windows cp1252 terminals used by rich logger.
+    raw.encode("cp1252")

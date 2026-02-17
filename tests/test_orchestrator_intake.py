@@ -96,3 +96,47 @@ def test_budget_scope_per_person_is_preserved() -> None:
 
     assert result.status == "ready"
     assert result.tripspec.budget.scope == "per_person"
+
+
+def test_combined_destination_text_is_split_into_multiple_legs() -> None:
+    draft = TripSpecDraft(
+        destination_text="Rome and Florence",
+        start_date="2026-03-10",
+        end_date="2026-03-14",
+        budget_amount=1500,
+        budget_currency="EUR",
+    )
+    intake = OrchestratorIntake(extractor=FakeExtractor(draft))
+
+    result = intake.process(
+        "Plan a 5-day trip to Rome and Florence",
+        now_ts=FIXED_NOW_TS,
+        timezone_name=TIMEZONE,
+    )
+
+    assert result.status == "ready"
+    assert [leg.destination_text for leg in result.tripspec.legs] == ["Rome", "Florence"]
+    assert result.tripspec.legs[0].date_range.start_date.isoformat() == "2026-03-10"
+    assert result.tripspec.legs[0].date_range.end_date.isoformat() == "2026-03-12"
+    assert result.tripspec.legs[1].date_range.start_date.isoformat() == "2026-03-13"
+    assert result.tripspec.legs[1].date_range.end_date.isoformat() == "2026-03-14"
+
+
+def test_multi_destination_with_too_few_days_requests_clarification() -> None:
+    draft = TripSpecDraft(
+        destination_text="Rome and Florence",
+        start_date="2026-03-10",
+        end_date="2026-03-10",
+        budget_amount=900,
+        budget_currency="EUR",
+    )
+    intake = OrchestratorIntake(extractor=FakeExtractor(draft))
+
+    result = intake.process(
+        "Plan a same-day trip to Rome and Florence",
+        now_ts=FIXED_NOW_TS,
+        timezone_name=TIMEZONE,
+    )
+
+    assert result.status == "clarification_needed"
+    assert "shorter than the number of destinations" in result.clarifying_question.questions[0]

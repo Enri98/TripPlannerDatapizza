@@ -9,6 +9,7 @@ import os
 from typing import Sequence
 
 from tripplanner.demo_flow import run_demo_flow
+from tripplanner.pipeline_runner import run_pipeline
 from tripplanner.telemetry import start_span
 
 
@@ -24,6 +25,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a stub itinerary planner output.",
     )
     demo_parser.add_argument("query", help="Natural-language trip query.")
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run the real Datapizza+Gemini pipeline.",
+    )
+    run_parser.add_argument("query", help="Natural-language trip query.")
+    run_parser.add_argument(
+        "--timezone",
+        default=None,
+        help="IANA timezone (defaults to TRIPPLANNER_TIMEZONE or UTC).",
+    )
+    run_parser.add_argument(
+        "--output-language",
+        choices=["en", "it"],
+        default=None,
+        help="Force itinerary output language.",
+    )
+    run_parser.add_argument(
+        "--now-ts",
+        default=None,
+        help="Optional fixed timestamp (ISO-8601) for deterministic runs.",
+    )
     return parser
 
 
@@ -46,12 +69,41 @@ def run_demo(query: str) -> dict[str, object]:
     return payload
 
 
+def run_real_pipeline(
+    query: str,
+    *,
+    timezone_name: str | None = None,
+    output_language: str | None = None,
+    now_ts: datetime | None = None,
+) -> dict[str, object]:
+    tz_name = timezone_name or os.getenv("TRIPPLANNER_TIMEZONE", "UTC")
+    return run_pipeline(
+        query,
+        now_ts=now_ts,
+        timezone_name=tz_name,
+        output_language=output_language or os.getenv("TRIPPLANNER_OUTPUT_LANGUAGE"),
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "demo":
         print(json.dumps(run_demo(args.query), ensure_ascii=True))
+        return 0
+
+    if args.command == "run":
+        explicit_now = None
+        if args.now_ts:
+            explicit_now = datetime.fromisoformat(args.now_ts.replace("Z", "+00:00"))
+        payload = run_real_pipeline(
+            args.query,
+            timezone_name=args.timezone,
+            output_language=args.output_language,
+            now_ts=explicit_now,
+        )
+        print(json.dumps(payload, ensure_ascii=True))
         return 0
 
     parser.print_help()

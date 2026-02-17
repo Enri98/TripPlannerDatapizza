@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import os
+import re
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
@@ -141,10 +142,11 @@ class OrchestratorIntake:
         reason = "missing_information"
 
         destination_text = (draft.destination_text or "").strip()
+        destination_list = _split_destinations(destination_text)
         if not destination_text:
             questions.append("Which city or region would you like to visit?")
             reason = "destination_missing"
-        elif self._is_ambiguous_destination(destination_text):
+        elif any(self._is_ambiguous_destination(destination) for destination in destination_list):
             questions.append(
                 "Which city or region in that country should I plan for?"
             )
@@ -184,9 +186,25 @@ class OrchestratorIntake:
             )
 
         start_date, end_date = parsed_range  # type: ignore[misc]
+        if (end_date - start_date).days + 1 < len(destination_list):
+            return IntakeClarification(
+                status="clarification_needed",
+                clarifying_question=ClarifyingQuestion(
+                    reason="dates_invalid",
+                    questions=[
+                        "Your date range is shorter than the number of destinations. "
+                        "Please provide more days or fewer destinations."
+                    ],
+                ),
+            )
         budget_scope = draft.budget_scope or "total"
         input_language = draft.input_language or "en"
         output_language = draft.output_language or input_language
+        legs = _build_legs(
+            destination_list,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         tripspec = TripSpec.model_validate(
             {
@@ -202,15 +220,7 @@ class OrchestratorIntake:
                     "scope": budget_scope,
                     "num_travelers": draft.num_travelers,
                 },
-                "legs": [
-                    {
-                        "destination_text": destination_text,
-                        "date_range": {
-                            "start_date": start_date.isoformat(),
-                            "end_date": end_date.isoformat(),
-                        },
-                    }
-                ],
+                "legs": legs,
                 "preferences": {
                     "tags": draft.preferences_tags,
                 },
@@ -250,3 +260,51 @@ class OrchestratorIntake:
     def _is_ambiguous_destination(self, destination_text: str) -> bool:
         normalized = " ".join(destination_text.lower().split())
         return normalized in self._AMBIGUOUS_COUNTRIES
+
+
+def _split_destinations(destination_text: str) -> list[str]:
+    normalized = " ".join(destination_text.strip().split())
+    if not normalized:
+        return []
+
+    parts = re.split(r"\s*(?:,| and | then |->| to )\s*", normalized, flags=re.IGNORECASE)
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for raw in parts:
+        destination = " ".join(raw.strip().split())
+        if not destination:
+            continue
+        key = destination.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(destination)
+    return candidates or [normalized]
+
+
+def _build_legs(
+    destinations: list[str],
+    *,
+    start_date: date,
+    end_date: date,
+) -> list[dict[str, object]]:
+    total_days = (end_date - start_date).days + 1
+    count = len(destinations)
+    base_days = total_days // count
+    remainder = total_days % count
+    cursor = start_date
+    legs: list[dict[str, object]] = []
+    for idx, destination in enumerate(destinations):
+        days_for_leg = base_days + (1 if idx < remainder else 0)
+        leg_end = cursor + timedelta(days=days_for_leg - 1)
+        legs.append(
+            {
+                "destination_text": destination,
+                "date_range": {
+                    "start_date": cursor.isoformat(),
+                    "end_date": leg_end.isoformat(),
+                },
+            }
+        )
+        cursor = leg_end + timedelta(days=1)
+    return legs
