@@ -237,7 +237,11 @@ class PipelineRunner:
             "days": [day.model_dump(mode="json") for day in itinerary.days],
             "warnings": itinerary.warnings,
             "stages": outcome.stages,
-            "itinerary_text": _render_day_by_day(itinerary.days),
+            "itinerary_text": render_itinerary_text(
+                days=[day.model_dump(mode="json") for day in itinerary.days],
+                title=itinerary.title,
+                warnings=itinerary.warnings,
+            ),
         }
 
 
@@ -332,10 +336,64 @@ def _is_retryable_transient_error(exc: Exception) -> bool:
     return isinstance(exc, TimeoutError)
 
 
-def _render_day_by_day(days: list[Any]) -> str:
+def render_itinerary_text(
+    *,
+    days: list[dict[str, Any]],
+    title: str,
+    warnings: list[str] | None = None,
+) -> str:
+    warnings = warnings or []
     lines: list[str] = []
+    lines.append(title)
+    lines.append("")
+    destinations_seen: list[str] = []
+
     for day in days:
-        lines.append(f"Day {day.day_index} ({day.date}) - {day.destination}")
-        for activity in day.activities:
-            lines.append(f"  - {activity.period}: {activity.name}")
+        day_index = day.get("day_index")
+        date = day.get("date")
+        destination = str(day.get("destination", "Unknown destination"))
+        if destination not in destinations_seen:
+            destinations_seen.append(destination)
+
+        lines.append(f"Day {day_index} ({date}) - {destination}")
+        weather_note = str(day.get("weather_note") or "").strip()
+        if weather_note:
+            lines.append(f"  Weather: {weather_note}")
+
+        activities = day.get("activities", [])
+        if isinstance(activities, list) and activities:
+            lines.append("  Activities:")
+            for activity in activities:
+                if not isinstance(activity, dict):
+                    continue
+                period = activity.get("period", "daytime")
+                name = activity.get("name", "Activity")
+                indoor = bool(activity.get("indoor", False))
+                marker = "indoor" if indoor else "outdoor"
+                lines.append(f"  - {period}: {name} ({marker})")
+
+        transport_notes = day.get("transport_notes", [])
+        if isinstance(transport_notes, list) and transport_notes:
+            lines.append("  Transfer:")
+            for note in transport_notes:
+                lines.append(f"  - {note}")
+
+        alternatives = day.get("alternatives", [])
+        if isinstance(alternatives, list) and alternatives:
+            lines.append("  Alternatives:")
+            for alt in alternatives:
+                lines.append(f"  - {alt}")
+        lines.append("")
+
+    if warnings:
+        lines.append("Caveats:")
+        for warning in warnings:
+            lines.append(f"- {warning}")
+        lines.append("")
+
+    lines.append(
+        f"Summary: {len(days)} day(s) across {len(destinations_seen)} destination(s): "
+        + ", ".join(destinations_seen)
+        + "."
+    )
     return "\n".join(lines)

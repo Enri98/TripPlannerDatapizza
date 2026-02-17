@@ -47,6 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional fixed timestamp (ISO-8601) for deterministic runs.",
     )
+    run_parser.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="json",
+        help="Output format for run command.",
+    )
     return parser
 
 
@@ -103,7 +109,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_language=args.output_language,
             now_ts=explicit_now,
         )
-        print(json.dumps(payload, ensure_ascii=True))
+        if args.format == "text":
+            if payload.get("status") == "completed":
+                print(str(payload.get("itinerary_text", "")).strip())
+            else:
+                print(str(payload.get("clarifying_question", "")).strip())
+        else:
+            print(json.dumps(payload, ensure_ascii=True))
         return 0
 
     parser.print_help()

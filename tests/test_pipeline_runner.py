@@ -12,6 +12,7 @@ from tripplanner.pipeline_runner import (
     _invoke_with_geo_rate_limit_retry,
     _is_retryable_transient_error,
     load_env_file,
+    render_itinerary_text,
     run_pipeline,
 )
 
@@ -112,3 +113,29 @@ def test_is_retryable_transient_error_classifies_errors() -> None:
     assert _is_retryable_transient_error(URLError("temporary unavailable"))
     assert _is_retryable_transient_error(TimeoutError("timed out"))
     assert not _is_retryable_transient_error(ValueError("bad input"))
+
+
+def test_render_itinerary_text_includes_blocks_caveats_and_summary() -> None:
+    text = render_itinerary_text(
+        days=[
+            {
+                "day_index": 1,
+                "date": "2026-03-10",
+                "destination": "Rome",
+                "weather_note": "Weather looks manageable for outdoor plans.",
+                "activities": [
+                    {"name": "Colosseum", "period": "morning", "indoor": False},
+                    {"name": "Vatican Museums", "period": "afternoon", "indoor": True},
+                ],
+                "transport_notes": ["Fast train suggestion"],
+                "alternatives": ["Indoor backup: museum"],
+            }
+        ],
+        title="Day-by-day itinerary",
+        warnings=["Some places may require advance booking."],
+    )
+    assert "Day-by-day itinerary" in text
+    assert "Day 1 (2026-03-10) - Rome" in text
+    assert "Transfer:" in text
+    assert "Caveats:" in text
+    assert "Summary: 1 day(s) across 1 destination(s): Rome." in text
